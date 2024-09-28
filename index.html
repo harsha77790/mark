@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Academic Calendar</title>
+    <link rel="stylesheet" href="/style.css"> <!-- Link to your CSS file -->
+</head>
+<body>
+    <img src="/8403154.jpg" alt="Logo" style="width: 150px;"> <!-- Adjust the path as needed -->
+    <h1>Interactive Academic Calendar</h1>
+
+    <div class="key-features">
+        <h2>Key Features</h2>
+        <ul>
+            <li>Integration with institutional academic calendars.</li>
+            <li>Deadline and event reminders.</li>
+            <li>Customizable personal calendar with class schedules.</li>
+            <li>Synchronization with mobile and desktop calendars.</li>
+        </ul>
+    </div>
+
+    <div class="navigation">
+        <button onclick="prevMonth()">Previous Month</button>
+        <button onclick="nextMonth()">Next Month</button>
+        <span id="currentMonth"></span>
+    </div>
+
+    <table id="calendar"></table>
+
+    <div class="add-event-form">
+        <h2>Add New Event</h2>
+        <input type="date" id="event-date" required>
+        <input type="text" id="event-name" placeholder="Event Name" required>
+        <input type="date" id="event-deadline" placeholder="Deadline" required>
+        <select id="event-type">
+            <option value="Assignment">Assignment</option>
+            <option value="Exam">Exam</option>
+            <option value="Project">Project</option>
+            <option value="Other">Other</option>
+        </select>
+        <button onclick="addEvent()">Add Event</button>
+    </div>
+
+    <div class="event-list">
+        <h2>All Events</h2>
+        <select id="filter-type" onchange="filterEvents()">
+            <option value="All">All</option>
+            <option value="Assignment">Assignment</option>
+            <option value="Exam">Exam</option>
+            <option value="Project">Project</option>
+            <option value="Other">Other</option>
+        </select>
+        <ul id="event-list"></ul>
+    </div>
+
+    <script>
+        let currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const storageKey = 'events';
+
+        // Load events from local storage
+        function loadEvents() {
+            const events = JSON.parse(localStorage.getItem(storageKey)) || [];
+            events.forEach(event => addEventToList(event.date, event.name, event.type, event.deadline));
+        }
+
+        function loadCalendar() {
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const table = document.getElementById('calendar');
+            table.innerHTML = `
+                <tr>
+                    <th>Date</th>
+                    <th>Event</th>
+                    <th>Type</th>
+                    <th>Deadline</th>
+                    <th>Actions</th>
+                </tr>
+            `;
+            document.getElementById('currentMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+        }
+
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--; // Adjust the year when going back
+            }
+            loadCalendar();
+        } 
+
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++; // Adjust the year when going forward
+            }
+            loadCalendar();
+        }
+
+        function addEvent() {
+            const date = document.getElementById('event-date').value;
+            const name = document.getElementById('event-name').value;
+            const deadline = document.getElementById('event-deadline').value; // Get deadline
+            const type = document.getElementById('event-type').value;
+
+            if (date && name && type && deadline) {
+                const eventDate = new Date(date);
+                const today = new Date();
+                
+                if (eventDate < today) {
+                    alert('Please select a future date.');
+                    return;
+                }
+
+                addEventToList(date, name, type, deadline);
+                saveEventToLocalStorage(date, name, type, deadline);
+
+                document.getElementById('event-date').value = '';
+                document.getElementById('event-name').value = '';
+                document.getElementById('event-deadline').value = '';
+                document.getElementById('event-type').value = 'Assignment';
+            } else {
+                alert('Please enter date, event name, type, and deadline.');
+            }
+        }
+
+        function addEventToList(date, name, type, deadline) {
+            const table = document.getElementById('calendar');
+            const row = table.insertRow();
+            const cell1 = row.insertCell(0);
+            const cell2 = row.insertCell(1);
+            const cell3 = row.insertCell(2);
+            const cell4 = row.insertCell(3); // Deadline cell
+            const cell5 = row.insertCell(4); // Actions cell
+
+            cell1.innerHTML = date;
+            cell2.innerHTML = name;
+            if (type === "Assignment") {
+                cell2.className = 'deadline';
+            }
+            cell3.innerHTML = type;
+            cell4.innerHTML = deadline; // Display the deadline
+            cell5.innerHTML = `<button onclick="deleteEvent(this)">Delete</button>`; // Actions
+
+            const eventList = document.getElementById('event-list');
+            const listItem = document.createElement('li');
+            listItem.textContent = `${date}: ${name} (Deadline: ${deadline})`; // Update list item
+            listItem.setAttribute('data-type', type);
+            listItem.setAttribute('data-name', name);
+            eventList.appendChild(listItem);
+        }
+
+        function saveEventToLocalStorage(date, name, type, deadline) {
+            const events = JSON.parse(localStorage.getItem(storageKey)) || [];
+            events.push({ date, name, type, deadline });
+            localStorage.setItem(storageKey, JSON.stringify(events));
+        }
+
+        function deleteEvent(button) {
+            const row = button.parentNode.parentNode;
+            const date = row.cells[0].innerHTML;
+            const name = row.cells[1].innerHTML;
+
+            // Remove from local storage
+            let events = JSON.parse(localStorage.getItem(storageKey)) || [];
+            events = events.filter(event => event.date !== date || event.name !== name);
+            localStorage.setItem(storageKey, JSON.stringify(events));
+
+            // Remove from the table
+            row.remove();
+            filterEvents();
+        }
+
+        function filterEvents() {
+            const filterType = document.getElementById('filter-type').value;
+            const events = document.querySelectorAll('#event-list li');
+            events.forEach(event => {
+                if (filterType === 'All' || event.getAttribute('data-type') === filterType) {
+                    event.style.display = '';
+                } else {
+                    event.style.display = 'none';
+                }
+            });
+        }
+
+        // Initial load
+        loadCalendar();
+        loadEvents();
+    </script>
+</body>
+</html>
